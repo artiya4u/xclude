@@ -1,6 +1,6 @@
 # X-Clude - X post filter extension for safer discussion.
 
-An X.com Chrome Extension to hide ragebait/clickbait/influencer/engagement farming posts using jav.ai.
+An X.com Chrome Extension to hide ragebait/clickbait/influencer/engagement farming posts using typesafe.ai Jev.
 
 ## Install (development)
 
