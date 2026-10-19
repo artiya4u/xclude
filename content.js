@@ -100,27 +100,32 @@ function buildPill(category, reason, source) {
   return pill;
 }
 
+// The slot in the header row just before the Grok icon / "..." menu on the right, if those have rendered.
+function findHeaderSlot(article, userName) {
+  const anchor = article.querySelector('[aria-label*="grok" i]') || article.querySelector('[data-testid="caret"]');
+  if (!anchor || userName.contains(anchor)) return null;
+  // Climb to the header row that holds both the author name and the action buttons.
+  let item = anchor;
+  while (item.parentElement && !item.parentElement.contains(userName)) item = item.parentElement;
+  const header = item.parentElement;
+  return header && header !== article ? { header, item } : null;
+}
+
 function insertPill(article, info) {
   const userName = article.querySelector('[data-testid="User-Name"]');
   if (!userName) return false;
   const pill = buildPill(info.category, info.reason, info.source);
   pill.className = PILL_CLASS;
 
-  // Preferred spot: in the header row, just before the Grok icon / "..." menu on the right.
-  const anchor = article.querySelector('[aria-label*="grok" i]') || article.querySelector('[data-testid="caret"]');
-  if (anchor && !userName.contains(anchor)) {
-    // Climb to the header row that holds both the author name and the action buttons.
-    let item = anchor;
-    while (item.parentElement && !item.parentElement.contains(userName)) item = item.parentElement;
-    const header = item.parentElement;
-    if (header && header !== article) {
-      header.insertBefore(pill, item);
-      return true;
-    }
+  const slot = findHeaderSlot(article, userName);
+  if (slot) {
+    slot.header.insertBefore(pill, slot.item);
+    pill.dataset.xcSpot = "header";
+  } else {
+    // X renders the action buttons after the post appears; until they exist, sit next to the name.
+    (userName.firstElementChild || userName).append(pill);
+    pill.dataset.xcSpot = "name";
   }
-
-  // Fallback: next to the display name.
-  (userName.firstElementChild || userName).append(pill);
   return true;
 }
 
@@ -137,13 +142,25 @@ function tagTweet(article, category, reason, source) {
     bar.append(buildPill(category, reason, source));
     article.before(bar);
   }
-  chrome.runtime.sendMessage({ type: "hidden", category }).catch(() => {});
+  chrome.runtime.sendMessage({ type: "flagged", category, key: article.dataset.xcKey }).catch(() => {});
 }
 
-// React may re-render the header and drop the pill; put it back.
+// React may re-render the header and drop the pill, and the Grok / menu buttons can render after
+// the pill was placed; put it back, or move it to its proper spot beside them.
 function restorePill(article) {
   const info = labelled.get(article);
-  if (info && !article.querySelector(`.${PILL_CLASS}`)) insertPill(article, info);
+  if (!info) return;
+  const pill = article.querySelector(`.${PILL_CLASS}`);
+  if (!pill) {
+    insertPill(article, info);
+  } else if (pill.dataset.xcSpot === "name") {
+    const userName = article.querySelector('[data-testid="User-Name"]');
+    const slot = userName && findHeaderSlot(article, userName);
+    if (slot) {
+      slot.header.insertBefore(pill, slot.item);
+      pill.dataset.xcSpot = "header";
+    }
+  }
 }
 
 function flagTweet(article, category, reason, source) {
@@ -173,7 +190,7 @@ function hideTweet(article, category, reason, source) {
   bar.append(label, button);
   article.before(bar);
   article.classList.add("xclude-hidden");
-  chrome.runtime.sendMessage({ type: "hidden", category }).catch(() => {});
+  chrome.runtime.sendMessage({ type: "flagged", category, key: article.dataset.xcKey }).catch(() => {});
 }
 
 function classifyWithAI(text, quoted, quoted2) {

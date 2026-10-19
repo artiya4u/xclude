@@ -217,14 +217,20 @@ async function classify(text, quoted = "", quoted2 = "") {
   return promise;
 }
 
+const SEEN_LIMIT = 5000; // remembered post keys, so re-renders and reloads don't count a post twice
+
 let statsQueue = Promise.resolve();
-function recordHidden(category) {
+function recordFlagged(category, key) {
   statsQueue = statsQueue.then(async () => {
-    const { stats } = await chrome.storage.local.get("stats");
+    const { stats, statsSeen } = await chrome.storage.local.get(["stats", "statsSeen"]);
+    const seen = new Set(statsSeen || []);
+    if (key && seen.has(key)) return;
+
     const next = stats || { hidden: 0, byCategory: {} };
     next.hidden += 1;
     next.byCategory[category] = (next.byCategory[category] || 0) + 1;
-    await chrome.storage.local.set({ stats: next });
+    if (key) seen.add(key);
+    await chrome.storage.local.set({ stats: next, statsSeen: [...seen].slice(-SEEN_LIMIT) });
   });
 }
 
@@ -241,7 +247,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: String(err.message || err) }));
     return true; // async response
   }
-  if (msg.type === "hidden" && msg.category in XC_CATEGORIES) {
-    recordHidden(msg.category);
+  if (msg.type === "flagged" && msg.category in XC_CATEGORIES) {
+    recordFlagged(msg.category, typeof msg.key === "string" ? msg.key : "");
   }
 });
