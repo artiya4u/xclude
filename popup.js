@@ -40,7 +40,8 @@ async function render() {
   const ai = document.getElementById("ai");
   if (settings.apiKey && aiUsage && aiUsage.day === new Date().toLocaleDateString("en-CA")) {
     const tokens = aiUsage.inputTokens + aiUsage.outputTokens;
-    ai.textContent = `AI today: ${aiUsage.posts} posts · ${aiUsage.requests} calls · ${tokens.toLocaleString()} tokens · ${aiUsage.cached} cached`;
+    const limit = settings.dailyLimit > 0 ? ` / ${settings.dailyLimit}` : "";
+    ai.textContent = `AI today: ${aiUsage.posts}${limit} posts · ${aiUsage.requests} calls · ${tokens.toLocaleString()} tokens · ${aiUsage.cached} cached`;
   } else {
     ai.textContent = settings.apiKey ? "AI today: no calls yet" : "";
   }

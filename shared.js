@@ -23,6 +23,7 @@ const XC_DEFAULTS = {
   categories: { ragebait: true, clickbait: true, influencer: true, engagement: true, question: true },
   sensitivity: "balanced", // relaxed | balanced | strict
   apiKey: "", // TypeSafe (Jev) API key; AI classification is on whenever this is set
+  dailyLimit: 2000, // max posts sent to Jev per day; 0 = no limit
   allowlist: [],
 };
 
@@ -159,6 +160,7 @@ function xcMergeSettings(stored) {
     ...s,
     categories: { ...XC_DEFAULTS.categories, ...(s.categories || {}) },
     allowlist: Array.isArray(s.allowlist) ? s.allowlist : [],
+    dailyLimit: Number.isInteger(s.dailyLimit) && s.dailyLimit >= 0 ? s.dailyLimit : XC_DEFAULTS.dailyLimit,
   };
 }
 

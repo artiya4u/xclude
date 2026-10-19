@@ -19,6 +19,7 @@ async function load() {
   $("sensitivity").value = s.sensitivity;
   $("allowlist").value = s.allowlist.join("\n");
   $("apiKey").value = s.apiKey;
+  $("dailyLimit").value = s.dailyLimit;
 }
 
 function parseAllowlist(text) {
@@ -38,6 +39,9 @@ $("save").addEventListener("click", async () => {
   categoriesEl.querySelectorAll("input").forEach((box) => {
     categories[box.dataset.category] = box.checked;
   });
+  const dailyLimit = Number($("dailyLimit").value);
+  if (!Number.isInteger(dailyLimit) || dailyLimit < 0) return say("Daily limit must be 0 or a positive whole number", false);
+
   await chrome.storage.local.set({
     settings: {
       ...current,
@@ -46,6 +50,7 @@ $("save").addEventListener("click", async () => {
       sensitivity: $("sensitivity").value,
       allowlist: parseAllowlist($("allowlist").value),
       apiKey: $("apiKey").value.trim(),
+      dailyLimit,
     },
   });
   say("Saved");

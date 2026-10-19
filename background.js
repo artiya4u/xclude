@@ -11,7 +11,6 @@ const BATCH_WAIT_MS = 400; // how long to wait for more posts before sending a p
 const CACHE_VERSION = 2; // bump when QUESTION changes so stale verdicts aren't reused
 const CACHE_LIMIT = 3000;
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
-const DAILY_POST_LIMIT = 2000; // posts sent to Jev per day, a hard stop on runaway spend
 
 let active = 0;
 const waiting = [];
@@ -209,7 +208,9 @@ async function classify(text, quoted = "", quoted2 = "") {
   }
   if (inflight.has(hash)) return inflight.get(hash);
 
-  if (u.posts >= DAILY_POST_LIMIT) throw new Error(`Daily AI limit of ${DAILY_POST_LIMIT} posts reached`);
+  if (settings.dailyLimit > 0 && u.posts >= settings.dailyLimit) {
+    throw new Error(`Daily AI limit of ${settings.dailyLimit} posts reached`);
+  }
   u.posts += 1;
 
   const promise = enqueue({ text, quoted, quoted2, hash }).finally(() => inflight.delete(hash));

@@ -9,7 +9,7 @@
     h2 { font-size: 15px; margin: 28px 0 8px; }
     fieldset { border: 1px solid #cfd9de; border-radius: 8px; margin: 0 0 12px; }
     label { display: block; margin: 6px 0; }
-    input[type=text], input[type=password], select, textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; }
+    input[type=text], input[type=password], input[type=number], select, textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; }
     .hint { color: #536471; font-size: 12px; }
     button { padding: 8px 16px; font: inherit; cursor: pointer; }
     #status { margin-left: 12px; color: #00ba7c; }
@@ -47,6 +47,9 @@
   <h2>AI classification (optional)</h2>
   <p class="hint">Built-in rules run locally. Add a <a href="https://docs.typesafe.ai/introduction" target="_blank" rel="noreferrer">TypeSafe (Jev)</a> API key and posts the rules don't catch are also classified by Jev. Post text is sent to api.typesafe.ai; the author is not. Leave blank to stay fully local.</p>
   <label>API key <input type="password" id="apiKey" autocomplete="off"></label>
+  <label>Daily limit (posts sent to Jev per day, 0 = no limit)
+    <input type="number" id="dailyLimit" min="0" step="100">
+  </label>
 
   <p><button id="save">Save</button><span id="status"></span></p>
 
