@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>X-Clude</title>
+  <style>
+    body { width: 240px; margin: 0; padding: 14px; font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f1419; }
+    h1 { font-size: 15px; margin: 0 0 10px; }
+    label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .count { font-size: 28px; font-weight: 700; line-height: 1.1; }
+    .muted { color: #536471; }
+    #rows { margin: 12px 0 4px; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin-bottom: 8px; }
+    .row .n { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: rgba(113, 118, 123, 0.2); overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: #1d9bf0; }
+    .row.zero { opacity: 0.45; }
+    a { color: #1d9bf0; cursor: pointer; text-decoration: none; }
+    @media (prefers-color-scheme: dark) { body { background: #15202b; color: #e7e9ea; } .muted { color: #8b98a5; } }
+  </style>
+</head>
+<body>
+  <h1>X-Clude</h1>
+  <label><span>Filter posts</span><input type="checkbox" id="enabled"></label>
+  <div class="count" id="hidden">0</div>
+  <div class="muted">posts hidden</div>
+  <div id="rows"></div>
+  <p><a id="options">Settings</a></p>
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

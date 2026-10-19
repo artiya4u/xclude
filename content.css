@@ -1,0 +1,28 @@
+.xclude-hidden {
+  display: none !important;
+}
+
+.xclude-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(113, 118, 123, 0.35);
+  color: rgb(113, 118, 123);
+  font: 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.xclude-placeholder button {
+  border: 1px solid rgba(113, 118, 123, 0.6);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 3px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.xclude-placeholder button:hover {
+  background: rgba(113, 118, 123, 0.15);
+}
