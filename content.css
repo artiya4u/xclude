@@ -26,3 +26,9 @@
 .xclude-placeholder button:hover {
   background: rgba(113, 118, 123, 0.15);
 }
+
+/* Post revealed: drop the divider so the bar reads as part of the post */
+.xclude-placeholder.xclude-open {
+  border-bottom: none;
+  padding-bottom: 0;
+}

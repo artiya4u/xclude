@@ -6,9 +6,13 @@ const PLACEHOLDER_CLASS = "xclude-placeholder";
 let settings = XC_DEFAULTS;
 let generation = 0; // bumped on settings change so in-flight AI results for old settings are dropped
 
-function getTweetText(article) {
-  const el = article.querySelector('[data-testid="tweetText"]');
-  return el ? el.innerText : "";
+// The author's own text, and the text of a quoted post if there is one.
+// A quoted post renders inside a role="link" card within the article; the author's text does not.
+function getTweetTexts(article) {
+  const els = [...article.querySelectorAll('[data-testid="tweetText"]')];
+  const main = els.find((el) => !el.closest('[role="link"]'));
+  const quoted = els.find((el) => el !== main && el.closest('[role="link"]'));
+  return { text: main ? main.innerText : "", quoted: quoted ? quoted.innerText : "" };
 }
 
 function getTweetHandle(article) {
@@ -19,7 +23,8 @@ function getTweetHandle(article) {
 function getTweetKey(article) {
   const link = article.querySelector('a[href*="/status/"] time')?.closest("a");
   const href = link ? link.getAttribute("href") : "";
-  return href || xcNormalize(getTweetText(article)).slice(0, 80);
+  const { text, quoted } = getTweetTexts(article);
+  return href || xcNormalize(text || quoted).slice(0, 80);
 }
 
 function removePlaceholder(article) {
@@ -43,6 +48,7 @@ function hideTweet(article, category, reason, source) {
   button.textContent = "Show";
   button.addEventListener("click", () => {
     const hidden = article.classList.toggle("xclude-hidden");
+    bar.classList.toggle("xclude-open", !hidden);
     button.textContent = hidden ? "Show" : "Hide";
   });
 
@@ -52,9 +58,9 @@ function hideTweet(article, category, reason, source) {
   chrome.runtime.sendMessage({ type: "hidden", category }).catch(() => {});
 }
 
-function classifyWithAI(text) {
+function classifyWithAI(text, quoted) {
   return chrome.runtime
-    .sendMessage({ type: "classify", text })
+    .sendMessage({ type: "classify", text, quoted })
     .then((res) => (res && res.ok ? res.result : null))
     .catch(() => null);
 }
@@ -67,13 +73,14 @@ async function processTweet(article) {
 
   if (!settings.enabled) return;
 
-  const text = getTweetText(article);
-  if (!text) return;
+  const { text, quoted } = getTweetTexts(article);
+  if (!text && !quoted) return;
 
   const handle = getTweetHandle(article);
   if (handle && settings.allowlist.includes(handle)) return;
 
-  const hit = xcHeuristic(text, settings);
+  // Rules look at the author's own words only, never the quoted post.
+  const hit = text ? xcHeuristic(text, settings) : null;
   if (hit) {
     hideTweet(article, hit.category, hit.reason, "rules");
     return;
@@ -82,7 +89,7 @@ async function processTweet(article) {
   if (!settings.apiKey) return;
 
   const gen = generation;
-  const result = await classifyWithAI(text);
+  const result = await classifyWithAI(text, quoted);
   if (gen !== generation || article.dataset.xcKey !== key || !result) return;
 
   let minConfidence = (XC_THRESHOLDS[settings.sensitivity] || XC_THRESHOLDS.balanced).confidence;

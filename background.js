@@ -3,6 +3,7 @@ importScripts("shared.js");
 const CACHE_LIMIT = 500;
 const MAX_CONCURRENT = 2;
 const MAX_TEXT_CHARS = 1000;
+const MAX_QUOTED_CHARS = 600;
 
 const cache = new Map(); // text -> { label, confidence }
 let active = 0;
@@ -15,7 +16,7 @@ const MAX_RETRIES = 2;
 const QUESTION = {
   type: "choice",
   instructions:
-    "Classify this social media post. Judge the post's intent and style, not its topic. Ordinary news, opinions, jokes and genuine discussion are ok.",
+    "Classify this social media post. Judge the post's intent and style, not its topic. Ordinary news, opinions, jokes and genuine discussion are ok. If the state has a quoted_post, it is context only: classify the author's own post (for example a comment that stirs outrage over the quote, or farms replies), never the quoted post by itself. A post with no comment that just quotes another is ok unless the quote itself is plainly being used as bait.",
   criteria: {
     ok: "Normal post: news, opinion, humor, personal update, genuine discussion or a question with a real information need",
     ragebait: "Written mainly to provoke anger or outrage and fuel arguments, not to inform",
@@ -43,10 +44,13 @@ function limit(task) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function callModel(text, apiKey) {
+async function callModel(text, quoted, apiKey) {
   const body = JSON.stringify({
     model: MODEL,
-    state: text.slice(0, MAX_TEXT_CHARS),
+    // With a quote, send both so the model can use the quoted post as context.
+    state: quoted
+      ? { post: text.slice(0, MAX_TEXT_CHARS) || "(no comment)", quoted_post: quoted.slice(0, MAX_QUOTED_CHARS) }
+      : text.slice(0, MAX_TEXT_CHARS),
     questions: { category: QUESTION },
   });
 
@@ -68,14 +72,14 @@ async function callModel(text, apiKey) {
   }
 }
 
-async function classify(text) {
+async function classify(text, quoted = "") {
   const settings = await xcLoadSettings();
   if (!settings.enabled || !settings.apiKey) return null;
 
-  const key = text;
+  const key = JSON.stringify([text, quoted]);
   if (cache.has(key)) return cache.get(key);
 
-  const verdict = await limit(() => callModel(text, settings.apiKey));
+  const verdict = await limit(() => callModel(text, quoted, settings.apiKey));
   if (verdict) {
     cache.set(key, verdict);
     if (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value);
@@ -98,7 +102,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
 
   if (msg.type === "classify" && typeof msg.text === "string") {
-    classify(msg.text)
+    classify(msg.text, typeof msg.quoted === "string" ? msg.quoted : "")
       .then((result) => sendResponse({ ok: !!result, result }))
       .catch((err) => sendResponse({ ok: false, error: String(err.message || err) }));
     return true; // async response
