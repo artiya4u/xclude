@@ -15,6 +15,7 @@ async function load() {
   categoriesEl.querySelectorAll("input").forEach((box) => {
     box.checked = s.categories[box.dataset.category];
   });
+  $("mode").value = s.mode;
   $("sensitivity").value = s.sensitivity;
   $("allowlist").value = s.allowlist.join("\n");
   $("apiKey").value = s.apiKey;
@@ -41,6 +42,7 @@ $("save").addEventListener("click", async () => {
     settings: {
       ...current,
       categories,
+      mode: $("mode").value,
       sensitivity: $("sensitivity").value,
       allowlist: parseAllowlist($("allowlist").value),
       apiKey: $("apiKey").value.trim(),

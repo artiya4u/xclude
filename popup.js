@@ -29,11 +29,21 @@ async function render() {
       bar.className = "bar";
       const fill = document.createElement("i");
       fill.style.width = `${(n / max) * 100}%`;
+      fill.style.background = XC_COLORS[key] || "#71767b";
       bar.append(fill);
       row.append(label, count, bar);
       return row;
     });
   document.getElementById("rows").replaceChildren(...rows);
+
+  const { aiUsage } = await chrome.storage.local.get("aiUsage");
+  const ai = document.getElementById("ai");
+  if (settings.apiKey && aiUsage && aiUsage.day === new Date().toLocaleDateString("en-CA")) {
+    const tokens = aiUsage.inputTokens + aiUsage.outputTokens;
+    ai.textContent = `AI today: ${aiUsage.posts} posts · ${aiUsage.requests} calls · ${tokens.toLocaleString()} tokens · ${aiUsage.cached} cached`;
+  } else {
+    ai.textContent = settings.apiKey ? "AI today: no calls yet" : "";
+  }
 }
 
 chrome.storage.onChanged.addListener(render);

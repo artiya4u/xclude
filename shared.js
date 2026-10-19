@@ -8,8 +8,18 @@ const XC_CATEGORIES = {
   question: "Trivial questions",
 };
 
+// Badge/bar colors per category (readable on light and dark backgrounds).
+const XC_COLORS = {
+  ragebait: "#f4212e",
+  clickbait: "#f58a07",
+  influencer: "#7856ff",
+  engagement: "#00a67e",
+  question: "#1d9bf0",
+};
+
 const XC_DEFAULTS = {
   enabled: true,
+  mode: "label", // "label": keep flagged posts visible with a category tag; "hide": collapse them behind a Show button
   categories: { ragebait: true, clickbait: true, influencer: true, engagement: true, question: true },
   sensitivity: "balanced", // relaxed | balanced | strict
   apiKey: "", // TypeSafe (Jev) API key; AI classification is on whenever this is set
