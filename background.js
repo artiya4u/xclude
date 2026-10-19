@@ -3,11 +3,12 @@ importScripts("shared.js");
 const MAX_CONCURRENT = 2;
 const MAX_TEXT_CHARS = 1000;
 const MAX_QUOTED_CHARS = 600;
+const MAX_QUOTED2_CHARS = 400;
 
 // Cost controls
 const BATCH_MAX = 5; // posts per request; batching 5 cut input tokens ~30% in testing
 const BATCH_WAIT_MS = 400; // how long to wait for more posts before sending a partial batch
-const CACHE_VERSION = 1; // bump when QUESTION changes so stale verdicts aren't reused
+const CACHE_VERSION = 2; // bump when QUESTION changes so stale verdicts aren't reused
 const CACHE_LIMIT = 3000;
 const CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const DAILY_POST_LIMIT = 2000; // posts sent to Jev per day, a hard stop on runaway spend
@@ -22,7 +23,7 @@ const MAX_RETRIES = 2;
 const QUESTION = {
   type: "choice",
   instructions:
-    "Classify this social media post. Judge the post's intent and style, not its topic. Ordinary news, opinions, jokes and genuine discussion are ok. If the state has a quoted_post, it is context only: classify the author's own post (for example a comment that stirs outrage over the quote, or farms replies), never the quoted post by itself. A post with no comment that just quotes another is ok unless the quote itself is plainly being used as bait.",
+    "Classify this social media post. Judge the post's intent and style, not its topic. Ordinary news, opinions, jokes and genuine discussion are ok. If the state has a quoted_post, it is context only: classify the author's own post (for example a comment that stirs outrage over the quote, or farms replies), never the quoted post by itself. If it also has quoted_post_2, that is the post which quoted_post itself quotes; also context only. A post with no comment that just quotes another is ok unless the quote itself is plainly being used as bait.",
   criteria: {
     ok: "Normal post: news, opinion, humor, personal update, genuine discussion or a question with a real information need",
     ragebait: "Written mainly to provoke anger or outrage and fuel arguments, not to inform",
@@ -70,8 +71,8 @@ function saveCache() {
   return chrome.storage.local.set({ aiCache: [...cache] });
 }
 
-async function hashKey(text, quoted) {
-  const data = new TextEncoder().encode(JSON.stringify([CACHE_VERSION, text, quoted]));
+async function hashKey(text, quoted, quoted2) {
+  const data = new TextEncoder().encode(JSON.stringify([CACHE_VERSION, text, quoted, quoted2]));
   const digest = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(digest).slice(0, 12)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -101,9 +102,12 @@ const saveUsage = () => chrome.storage.local.set({ aiUsage: usage });
 function describe(item) {
   const text = item.text.slice(0, MAX_TEXT_CHARS);
   // With a quote, send both so the model can use the quoted post as context.
-  return item.quoted
-    ? { post: text || "(no comment)", quoted_post: item.quoted.slice(0, MAX_QUOTED_CHARS) }
-    : { post: text };
+  if (!item.quoted) return { post: text };
+  return {
+    post: text || "(no comment)",
+    quoted_post: item.quoted.slice(0, MAX_QUOTED_CHARS),
+    ...(item.quoted2 ? { quoted_post_2: item.quoted2.slice(0, MAX_QUOTED2_CHARS) } : {}),
+  };
 }
 
 function buildBody(items) {
@@ -192,11 +196,11 @@ async function flush() {
   }
 }
 
-async function classify(text, quoted = "") {
+async function classify(text, quoted = "", quoted2 = "") {
   const settings = await xcLoadSettings();
   if (!settings.enabled || !settings.apiKey) return null;
 
-  const [c, u, hash] = await Promise.all([loadCache(), loadUsage(), hashKey(text, quoted)]);
+  const [c, u, hash] = await Promise.all([loadCache(), loadUsage(), hashKey(text, quoted, quoted2)]);
 
   const hit = c.get(hash);
   if (hit && Date.now() - hit[2] < CACHE_TTL_MS) {
@@ -208,7 +212,7 @@ async function classify(text, quoted = "") {
   if (u.posts >= DAILY_POST_LIMIT) throw new Error(`Daily AI limit of ${DAILY_POST_LIMIT} posts reached`);
   u.posts += 1;
 
-  const promise = enqueue({ text, quoted, hash }).finally(() => inflight.delete(hash));
+  const promise = enqueue({ text, quoted, quoted2, hash }).finally(() => inflight.delete(hash));
   inflight.set(hash, promise);
   return promise;
 }
@@ -228,7 +232,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
 
   if (msg.type === "classify" && typeof msg.text === "string") {
-    classify(msg.text, typeof msg.quoted === "string" ? msg.quoted : "")
+    classify(
+      msg.text,
+      typeof msg.quoted === "string" ? msg.quoted : "",
+      typeof msg.quoted2 === "string" ? msg.quoted2 : ""
+    )
       .then((result) => sendResponse({ ok: !!result, result }))
       .catch((err) => sendResponse({ ok: false, error: String(err.message || err) }));
     return true; // async response

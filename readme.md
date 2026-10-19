@@ -24,3 +24,4 @@ No build step. Click the toolbar icon for the on/off switch and flagged-post cou
 - Verdicts are cached for 14 days (up to 3,000, stored as hashes of the post text), so refreshes and re-renders cost nothing.
 - Posts are batched up to 5 per request (~30% fewer input tokens than one call each). Identical posts in flight share one call.
 - A hard cap of 2,000 posts per day (`DAILY_POST_LIMIT` in `background.js`). The popup shows today's posts, calls, tokens and cache hits.
+- Quote handling: the author's own text is judged; a quoted post and the post it quotes (two levels) are sent to Jev as context only.

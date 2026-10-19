@@ -55,13 +55,19 @@ function makeIcon(category) {
 let settings = XC_DEFAULTS;
 let generation = 0; // bumped on settings change so in-flight AI results for old settings are dropped
 
-// The author's own text, and the text of a quoted post if there is one.
+// The author's own text, plus up to two levels of quoted posts.
 // A quoted post renders inside a role="link" card within the article; the author's text does not.
+// A quote of a quote is a nested role="link" card (data-testid="nestedQuotePreview") inside the first,
+// so document order is nesting order: quoted = the post being quoted, quoted2 = the post that one quotes.
 function getTweetTexts(article) {
   const els = [...article.querySelectorAll('[data-testid="tweetText"]')];
   const main = els.find((el) => !el.closest('[role="link"]'));
-  const quoted = els.find((el) => el !== main && el.closest('[role="link"]'));
-  return { text: main ? main.innerText : "", quoted: quoted ? quoted.innerText : "" };
+  const quotes = els.filter((el) => el !== main && el.closest('[role="link"]'));
+  return {
+    text: main ? main.innerText : "",
+    quoted: quotes[0] ? quotes[0].innerText : "",
+    quoted2: quotes[1] ? quotes[1].innerText : "",
+  };
 }
 
 function getTweetHandle(article) {
@@ -170,9 +176,9 @@ function hideTweet(article, category, reason, source) {
   chrome.runtime.sendMessage({ type: "hidden", category }).catch(() => {});
 }
 
-function classifyWithAI(text, quoted) {
+function classifyWithAI(text, quoted, quoted2) {
   return chrome.runtime
-    .sendMessage({ type: "classify", text, quoted })
+    .sendMessage({ type: "classify", text, quoted, quoted2 })
     .then((res) => (res && res.ok ? res.result : null))
     .catch(() => null);
 }
@@ -211,7 +217,7 @@ async function processTweet(article) {
 
   if (!settings.enabled) return;
 
-  const { text, quoted } = getTweetTexts(article);
+  const { text, quoted, quoted2 } = getTweetTexts(article);
   if (!text && !quoted) return;
 
   const handle = getTweetHandle(article);
@@ -230,7 +236,7 @@ async function processTweet(article) {
   const gen = generation;
   whenNearViewport(article, async () => {
     if (gen !== generation || article.dataset.xcKey !== key) return;
-    const result = await classifyWithAI(text, quoted);
+    const result = await classifyWithAI(text, quoted, quoted2);
     if (gen !== generation || article.dataset.xcKey !== key || !result) return;
     applyAIResult(article, result);
   });
